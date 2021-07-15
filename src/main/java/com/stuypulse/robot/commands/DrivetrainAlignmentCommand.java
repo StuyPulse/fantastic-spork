@@ -7,14 +7,15 @@ package com.stuypulse.robot.commands;
 import com.stuypulse.stuylib.control.Controller;
 import com.stuypulse.stuylib.math.Angle;
 import com.stuypulse.stuylib.math.SLMath;
-import com.stuypulse.stuylib.streams.filters.HighPassFilter;
 import com.stuypulse.stuylib.streams.filters.IFilter;
 import com.stuypulse.stuylib.streams.filters.IFilterGroup;
 import com.stuypulse.stuylib.streams.filters.LowPassFilter;
 import com.stuypulse.stuylib.util.StopWatch;
 
+
 import com.stuypulse.robot.Constants.Alignment;
 import com.stuypulse.robot.subsystems.Drivetrain;
+import com.stuypulse.robot.util.IFuser;
 
 /**
  * Drivetrain Alignment Command takes in a drivetrain, an aligner, and two controllers. This lets
@@ -57,13 +58,11 @@ public class DrivetrainAlignmentCommand extends DrivetrainCommand {
 
     // Variables for fusing the alignment
     // data with the encoder data
-    private double initAngleMeasurement;
+    private double initAngleMeasurement; 
     private double initSpeedMeasurement;
 
-    private IFilter speedLowPass;
-    private IFilter speedHighPass;
-    private IFilter angleLowPass;
-    private IFilter angleHighPass;
+    private IFuser angleFuser;
+    private IFuser speedFuser;
 
     // Used to check timeout of alignment
     private StopWatch timer;
@@ -102,10 +101,17 @@ public class DrivetrainAlignmentCommand extends DrivetrainCommand {
         this.initAngleMeasurement = 0;
         this.initSpeedMeasurement = 0;
 
-        this.speedHighPass = new HighPassFilter(Alignment.SENSOR_FUSION_RC);
-        this.speedLowPass = new LowPassFilter(Alignment.SENSOR_FUSION_RC);
-        this.angleHighPass = new HighPassFilter(Alignment.SENSOR_FUSION_RC);
-        this.angleLowPass = new LowPassFilter(Alignment.SENSOR_FUSION_RC);
+        this.speedFuser = new IFuser(
+            Alignment.SENSOR_FUSION_RC,
+            aligner::getSpeedError,
+            () -> initSpeedMeasurement - drivetrain.getDistance()
+        );
+            
+        this.angleFuser = new IFuser(
+            Alignment.SENSOR_FUSION_RC,
+            () -> aligner.getAngleError().toDegrees(),
+            () -> initAngleMeasurement - drivetrain.getRawAngle()
+        );
 
         // Used to check the alignment time.
         this.timer = new StopWatch();
@@ -171,30 +177,16 @@ public class DrivetrainAlignmentCommand extends DrivetrainCommand {
 
     // Get distance left to travel
     public double getSpeedError() {
-        // Get the low freqencies of the raw aligner
-        double alignData = aligner.getSpeedError();
-        double lowpass = speedLowPass.get(alignData);
-
-        // Get the high frequencies of the encoder data
-        double encoderData = initSpeedMeasurement - drivetrain.getDistance();
-        double highpass = speedHighPass.get(encoderData);
-
-        // Combine the data and return it
-        return lowpass + highpass;
+        // The speed fuser combines the low frequency of the raw aligner
+        // and the high frequencies of the encoder data using high / low pass filters
+        return speedFuser.get();
     }
 
     // Get angle left to turn
     public Angle getAngleError() {
-        // Get the low freqencies of the raw aligner
-        double alignData = aligner.getAngleError().toDegrees();
-        double lowpass = angleLowPass.get(alignData);
-
-        // Get the high frequencies of the encoder data
-        double encoderData = initAngleMeasurement - drivetrain.getRawAngle();
-        double highpass = angleHighPass.get(encoderData);
-
-        // Combine the data and return it
-        return Angle.fromDegrees(lowpass + highpass);
+        // The speed fuser combines the low frequency of the raw aligner
+        // and the high frequencies of the gyroscope data using high / low pass filters
+        return Angle.fromDegrees(angleFuser.get());
     }
 
     // Speed robot should move
