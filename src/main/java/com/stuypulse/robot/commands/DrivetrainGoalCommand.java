@@ -11,13 +11,24 @@ import com.stuypulse.robot.subsystems.Drivetrain;
 public class DrivetrainGoalCommand extends DrivetrainAlignmentCommand {
 
     /**
+     * Create a drivetrain goal command.
+     * 
      * @param drivetrain drivetrain to do movements on
-     * @param distance distance to move from the target
-     * @param innerGoal if we should aim for the inner goal
+     * @param goalAligner a goal aligner class -- should be using offsets from the limelight
      */
-    public DrivetrainGoalCommand(Drivetrain drivetrain, Number distance) {
-        super(drivetrain, new DrivetrainGoalAligner(distance));
+    public DrivetrainGoalCommand(Drivetrain drivetrain, DrivetrainGoalAligner goalAligner) {
+        super(drivetrain, goalAligner);
         setMaxSpeed(Constants.Alignment.Speed.LIMELIGHT_MAX_SPEED);
         useMinTime();
+    }
+
+    /**
+     * Create a drivetrain goal command.
+     * 
+     * @param drivetrain drivetrain to do movements on
+     * @param distance distance to stop in front of the target
+     */
+    public DrivetrainGoalCommand(Drivetrain drivetrain, Number distance) {
+        this(drivetrain, new DrivetrainGoalAligner(distance));
     }
 }

@@ -15,7 +15,7 @@ import com.stuypulse.robot.Constants.Alignment;
  */
 public class DrivetrainGoalAligner implements DrivetrainAlignmentCommand.Aligner {
 
-    private Number distance;
+    protected Number distance;
 
     public DrivetrainGoalAligner(Number distance) {
         this.distance = distance;
